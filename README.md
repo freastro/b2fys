@@ -1,5 +1,7 @@
 B2fys is a high-performance, POSIX-ish [Blackblaze B2](https://www.backblaze.com/b2/) file system written in Java.
 
+[![Build Status](https://travis-ci.org/freastro/b2fys.svg?branch=master)](https://travis-ci.org/freastro/b2fys)
+
 Overview
 ========
 
