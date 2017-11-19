@@ -3,7 +3,6 @@ package net.freastro.b2fys;
 import com.backblaze.b2.client.B2ListFilesIterable;
 import com.backblaze.b2.client.exceptions.B2Exception;
 import com.backblaze.b2.client.structures.B2FileVersion;
-import com.backblaze.b2.client.structures.B2GetFileInfoRequest;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
 
 import org.apache.logging.log4j.LogManager;
@@ -19,10 +18,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -30,7 +26,6 @@ import javax.annotation.Nonnull;
 
 import co.paralleluniverse.fuse.TypeMode;
 
-import static net.freastro.b2fys.syscall.DT_DIR;
 import static net.freastro.b2fys.syscall.DT_Directory;
 import static net.freastro.b2fys.syscall.DT_File;
 
@@ -125,7 +120,7 @@ class Inode {
     long findChildMaxTime() {
         long maxTime = this.attributes.mTime;
 
-        for (int i=0; i < this.dir.children.length; ++i) {
+        for (int i = 0; i < this.dir.children.length; ++i) {
             Inode c = this.dir.children[i];
             if (c.attributes.mTime > maxTime) {
                 maxTime = c.attributes.mTime;
@@ -216,7 +211,7 @@ class Inode {
     void insertChildUnlocked(Inode inode) {
         int l = this.dir.children.length;
         if (l == 0) {
-            this.dir.children = new Inode[] {inode};
+            this.dir.children = new Inode[]{inode};
             return;
         }
 
@@ -230,7 +225,7 @@ class Inode {
 
             this.dir.children = Stream.of(Arrays.stream(this.dir.children), Stream.of(inode))
                     .toArray(Inode[]::new);
-            System.arraycopy(this.dir.children, 0, this.dir.children, i+1, i);
+            System.arraycopy(this.dir.children, 0, this.dir.children, i + 1, i);
             this.dir.children[i] = inode;
         }
     }
@@ -322,7 +317,7 @@ class Inode {
 
         objectChan = this.lookUpInodeNotDir(fullName);
         if (!this.fs.flags.cheap) {
-            dirBlobChan = this.lookUpInodeNotDir(fullName+"/");
+            dirBlobChan = this.lookUpInodeNotDir(fullName + "/");
             if (!this.fs.flags.explicitDir) {
                 dirChan = this.lookUpInodeDir(fullName);
             }
@@ -333,7 +328,7 @@ class Inode {
                 CompletableFuture.anyOf(Stream.of(objectChan, dirBlobChan, dirChan)
                                                 .filter(Objects::nonNull)
                                                 .toArray(CompletableFuture[]::new))
-                .get();
+                        .get();
             } catch (Exception e) {
                 // ignored
             }
@@ -499,11 +494,12 @@ class Inode {
                 if (parent.dir.seqOpenDirScore >= 2) {
                     log.debug("%s in readdir mode", parent.fullName());
                 }
-            } else if (parent.dir.lastOpenDir != null && parent.dir.lastOpenDirIdx+1 < num &&
-                    // we are reading the next one as expected
-                    parent.dir.children[parent.dir.lastOpenDirIdx+1].name.equals(name) &&
-                    // check that inode positions haven't moved
-                    parent.dir.children[parent.dir.lastOpenDirIdx].name.equals(parent.dir.lastOpenDir)) {
+            } else if (parent.dir.lastOpenDir != null && parent.dir.lastOpenDirIdx + 1 < num &&
+                       // we are reading the next one as expected
+                       parent.dir.children[parent.dir.lastOpenDirIdx + 1].name.equals(name) &&
+                       // check that inode positions haven't moved
+                       parent.dir.children[parent.dir.lastOpenDirIdx].name
+                               .equals(parent.dir.lastOpenDir)) {
                 // 2.2) if I open b/, root's score is now 2
                 // ie: handle the breath first search case
                 if (parent.dir.seqOpenDirScore < 255) {
@@ -560,8 +556,8 @@ class Inode {
         int i = sortSearch(l, this.findInodeFunc(inode.name, inode.isDir()));
         assert i < l && this.dir.children[i].name.equals(inode.name);
 
-        System.arraycopy(this.dir.children, i+1, this.dir.children, i, i);
-        this.dir.children[l-1] = null;
+        System.arraycopy(this.dir.children, i + 1, this.dir.children, i, i);
+        this.dir.children[l - 1] = null;
         this.dir.children = Arrays.copyOf(this.dir.children, this.dir.children.length - 2);
     }
 
@@ -585,7 +581,7 @@ class Inode {
 
     // TODO(ghart)
     private int sortSearch(final int n, @Nonnull final Predicate<Integer> f) {
-        for (int i=0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) {
             if (f.test(i)) {
                 return i;
             }

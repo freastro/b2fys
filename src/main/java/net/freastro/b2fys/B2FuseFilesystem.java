@@ -13,7 +13,9 @@ import org.apache.logging.log4j.Logger;
 
 import sun.awt.Mutex;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -28,6 +30,7 @@ import javax.annotation.Nullable;
 
 import co.paralleluniverse.fuse.AbstractFuseFilesystem;
 import co.paralleluniverse.fuse.DirectoryFiller;
+import co.paralleluniverse.fuse.Fuse;
 import co.paralleluniverse.fuse.StructFuseFileInfo;
 import co.paralleluniverse.fuse.StructStat;
 import co.paralleluniverse.fuse.StructStatvfs;
@@ -221,6 +224,35 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
             LogManager.getLogger("s3").error("code=%s msg=%s", e.getStatus(), e.getCode());
             return -Errno.ENOENT.intValue();
         }
+    }
+
+    static B2FuseFilesystem Mount(String bucketName, Config config) {
+        FlagStorage flags = new FlagStorage(config);
+
+        B2ClientConfig awsConfig = B2ClientConfig.builder(System.getenv("ACCOUNT_ID"),
+                                                          System.getenv("APPLICATION_KEY"),
+                                                          "b2fys")
+                .build();
+
+        B2FuseFilesystem fs = B2FuseFilesystem.create(bucketName, awsConfig, flags);
+        if (fs == null) {
+            log.error("Mount: initialization failed");
+            return null;
+        }
+
+        try {
+            Fuse.mount(fs, Paths.get(flags.mountPoint), false, flags.debugFuse,
+                       flags.mountOptions);
+        } catch (IOException e) {
+            log.error("Mount: %s", e);
+            return null;
+        }
+
+        if (flags.cache.length != 0) {
+            // TODO(ghart): catfs
+        }
+
+        return fs;
     }
 
     String key(@Nonnull final String name) {

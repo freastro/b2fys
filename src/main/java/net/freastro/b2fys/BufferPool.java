@@ -9,8 +9,6 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 import sun.awt.Mutex;
 import sun.misc.ConditionLock;
 
-import java.util.NoSuchElementException;
-
 class BufferPool {
 
     static final int BUF_SIZE = 5 * 1024 * 1024;

@@ -1,7 +1,6 @@
 package net.freastro.b2fys;
 
 import com.backblaze.b2.client.B2ListFilesIterable;
-import com.backblaze.b2.client.exceptions.B2Exception;
 import com.backblaze.b2.client.structures.B2FileVersion;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
 
@@ -343,7 +342,7 @@ class DirHandle {
             for (int i1 = 0; i1 < this.entries.length; i1++) {
                 en = this.entries[i1];
                 // offset is 1 based, also need to account for "." and ".."
-                en.offset = (i1+baseOffset) + 1 + 2;
+                en.offset = (i1 + baseOffset) + 1 + 2;
             }
 
             /*
