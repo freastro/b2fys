@@ -9,11 +9,9 @@ import org.apache.logging.log4j.LogManager;
 import sun.awt.Mutex;
 
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
@@ -27,7 +25,7 @@ class DirHandle {
 
     Inode inode;
 
-    Mutex mu; // everything below is protected by mu
+    Mutex mu = new Mutex(); // everything below is protected by mu
     DirHandleEntry[] entries;
     String marker;
     int baseOffset;
@@ -214,7 +212,9 @@ class DirHandle {
         DirHandleEntry en;
         try {
             en = inode.readDirFromCache(offset);
-            return en;
+            if (en != null) {
+                return en;
+            }
         } catch (IllegalStateException e) {
             // ignored
         }
@@ -240,7 +240,7 @@ class DirHandle {
         int i = ((int) offset) - baseOffset - 2;
         assert i >= 0;
 
-        if (i >= entries.length) {
+        if (i >= (entries != null ? entries.length : 0)) {
             if (marker != null) {
                 // we need to fetch the next page
                 entries = null;
@@ -266,9 +266,8 @@ class DirHandle {
             }
 
             LogManager.getLogger("s3").debug(resp);
-            mu.lock();
 
-            List<DirHandleEntry> entries = new ArrayList<>();
+            entries = new DirHandleEntry[0];
 
             // this is only returned for non-slurped responses
             /*

@@ -13,7 +13,7 @@ class BufferPool {
 
     static final int BUF_SIZE = 5 * 1024 * 1024;
 
-    Mutex mu;
+    Mutex mu = new Mutex();
     ConditionLock cond;
 
     long numBuffers;

@@ -38,11 +38,11 @@ class Inode {
     long id;
     String name;
     B2FuseFilesystem fs;
-    InodeAttributes attributes;
+    InodeAttributes attributes = new InodeAttributes();
     long knownSize;
     Instant attrTime;
 
-    Mutex mu; // everything below is protected by mu
+    Mutex mu = new Mutex(); // everything below is protected by mu
 
     Inode parent;
 
@@ -131,7 +131,7 @@ class Inode {
     }
 
     Inode findChildUnlocked(@Nonnull final String name, final boolean isDir) {
-        int l = this.dir.children.length;
+        int l = (this.dir.children != null) ? this.dir.children.length : 0;
         if (l == 0) {
             return null;
         }
@@ -209,7 +209,7 @@ class Inode {
     }
 
     void insertChildUnlocked(Inode inode) {
-        int l = this.dir.children.length;
+        int l = (this.dir.children != null) ? this.dir.children.length : 0;
         if (l == 0) {
             this.dir.children = new Inode[]{inode};
             return;
@@ -218,12 +218,12 @@ class Inode {
         int i = sortSearch(l, this.findInodeFunc(inode.name, inode.isDir()));
         if (i == l) {
             // not found = new value is the biggest
-            this.dir.children = Stream.of(Arrays.stream(this.dir.children), Stream.of(inode))
+            this.dir.children = Stream.concat(Arrays.stream(this.dir.children), Stream.of(inode))
                     .toArray(Inode[]::new);
         } else {
             assert !(this.dir.children[i].name.equals(inode.name));
 
-            this.dir.children = Stream.of(Arrays.stream(this.dir.children), Stream.of(inode))
+            this.dir.children = Stream.concat(Arrays.stream(this.dir.children), Stream.of(inode))
                     .toArray(Inode[]::new);
             System.arraycopy(this.dir.children, 0, this.dir.children, i + 1, i);
             this.dir.children[i] = inode;
@@ -449,7 +449,7 @@ class Inode {
         if (!B2FuseFilesystem.expired(this.dir.dirTime, this.fs.flags.TypeCacheTtl)) {
             ok = true;
 
-            if (offset >= this.dir.children.length) {
+            if (this.dir.children == null || offset >= this.dir.children.length) {
                 // return
             } else {
                 Inode child = this.dir.children[(int) offset];

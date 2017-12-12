@@ -16,7 +16,7 @@ class FileHandle {
     CountDownLatch mpuWG;
     String[] etags;
 
-    Mutex mu;
+    Mutex mu = new Mutex();
     String mpuId;
     long nextWriteOffset;
     int lastPartId;

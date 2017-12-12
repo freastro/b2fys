@@ -10,7 +10,7 @@ class Ticket {
     int total;
     int outstanding;
 
-    Mutex mu;
+    Mutex mu = new Mutex();
     ConditionLock cond;
 
     Ticket() {

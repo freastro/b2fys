@@ -45,8 +45,8 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
     private static final Logger log = LogManager.getLogger(B2FuseFilesystem.class);
 
-    String bucket;
-    String prefix;
+    String bucket = "";
+    String prefix = "";
 
     FlagStorage flags;
 
@@ -56,14 +56,14 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     Object sess;
     B2StorageClient b2;
     boolean v2Signer;
-    String seeType;
-    InodeAttributes rootAttrs;
+    String seeType = "";
+    InodeAttributes rootAttrs = new InodeAttributes();
 
     BufferPool bufferPool;
 
     // A lock protecting the state of the file system struct itself (distinct
     // from per-inode locks). Make sure to see the notes on lock ordering above.
-    Mutex mu;
+    Mutex mu = new Mutex();
 
     // The next inode ID to hand out. We assume that this will never overflow,
     // since even if we were handing out inode IDs at 4 GHz, it would still take
@@ -82,7 +82,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     //
     // GUARDED_BY(mu)
     Map<Long, Inode> inodes;
-    Map<String, Long> paths = new HashMap<>();
+    Map<String, Long> paths;
 
     long nextHandleID;
     Map<Long, DirHandle> dirHandles;
@@ -93,12 +93,17 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
     int forgotCnt;
 
-    private B2FuseFilesystem() {
+    B2FuseFilesystem() {
     }
 
     public static B2FuseFilesystem create(String bucket, B2ClientConfig b2Config,
                                           FlagStorage flags) {
-        B2FuseFilesystem fs = new B2FuseFilesystem();
+        return new B2FuseFilesystem().init(bucket, b2Config, flags);
+    }
+
+    B2FuseFilesystem init(String bucket, B2ClientConfig b2Config,
+                          FlagStorage flags) {
+        B2FuseFilesystem fs = this;
         fs.bucket = bucket;
         fs.flags = flags;
         fs.umask = 0122;
@@ -186,12 +191,14 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
         fs.nextInodeID = Inode.RootInodeID + 1;
         fs.inodes = new HashMap<>();
+        fs.paths = new HashMap<>();
         Inode root = new Inode(fs, null, "", "");
         root.id = Inode.RootInodeID;
         root.toDir();
         root.attributes.mTime = fs.rootAttrs.mTime;
 
         fs.inodes.put(Inode.RootInodeID, root);
+        fs.paths.put("/", Inode.RootInodeID);
 
         fs.nextHandleID = 1;
         fs.dirHandles = new HashMap<>();

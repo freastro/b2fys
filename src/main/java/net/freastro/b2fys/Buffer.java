@@ -7,7 +7,7 @@ import java.io.InputStream;
 
 class Buffer {
 
-    Mutex mu;
+    Mutex mu = new Mutex();
     ConditionLock cond;
 
     MBuf buf;

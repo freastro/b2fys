@@ -8,7 +8,7 @@ class DirInodeData {
     String lastOpenDir;
     int lastOpenDirIdx;
     byte seqOpenDirScore;
-    Instant dirTime;
+    Instant dirTime = Instant.MIN;
 
     Inode[] children;
 }
