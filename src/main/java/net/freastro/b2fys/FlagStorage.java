@@ -16,34 +16,34 @@ class FlagStorage {
     private static final Logger log = LogManager.getLogger(FlagStorage.class);
 
     // File system
-    Map<String, String> mountOptions;
-    String mountPoint;
-    String mountPointArg;
-    String mountPointCreated;
+    Map<String, String> mountOptions = new HashMap<>();
+    String mountPoint = "";
+    String mountPointArg = "";
+    String mountPointCreated = "";
 
-    String[] cache;
+    String[] cache = new String[0];
     int dirMode;
     int fileMode;
     int uid;
     int gid;
 
     // S3
-    String endpoint;
-    String region;
+    String endpoint = "";
+    String region = "";
     boolean regionSet;
-    String storageClass;
-    String profile;
+    String storageClass = "";
+    String profile = "";
     boolean useContentType;
     boolean useSSE;
     boolean useKMS;
-    String kmsKeyId;
-    String acl;
+    String kmsKeyId = "";
+    String acl = "";
 
     // Tuning
     boolean cheap;
     boolean explicitDir;
-    Duration statCacheTtl;
-    Duration TypeCacheTtl;
+    Duration statCacheTtl = Duration.ZERO;
+    Duration TypeCacheTtl = Duration.ZERO;
 
     // Debugging
     boolean debugFuse;

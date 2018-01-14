@@ -7,17 +7,12 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import co.paralleluniverse.fuse.Fuse;
 import co.paralleluniverse.fuse.FuseFilesystem;
-import co.paralleluniverse.javafs.JavaFS;
 
 public class App {
 
@@ -36,11 +31,11 @@ public class App {
     @Parameter(names = "-o", description = "Additional system-specific mount options. Be careful!")
     List<String> o = new ArrayList<>();
 
-    @Parameter(names = "cache", description = "Directory to use for data cache. "
-                                              + "Requires catfs and `-o allow_other'. "
-                                              + "Can also pass in other catfs options "
-                                              + "(ex: --cache \"--free:10%:$HOME/cache\" "
-                                              + "(default: off)")
+    @Parameter(names = "--cache", description = "Directory to use for data cache. "
+                                                + "Requires catfs and `-o allow_other'. "
+                                                + "Can also pass in other catfs options "
+                                                + "(ex: --cache \"--free:10%:$HOME/cache\" "
+                                                + "(default: off)")
     String cache;
 
     @Parameter(names = "--dir-mode", description = "Permission bits for directories. (default: "
@@ -92,10 +87,10 @@ public class App {
                                               + "(SSE-S3) in S3 for all writes (default: off)")
     boolean sse;
 
-    @Parameter(names = "sse-kms", description = "Enable KMS encryption (SSE-KMS) for all writes "
-                                                + "using this particular KMS `key-id`. Leave "
-                                                + "blank to Use the account's CMK - customer "
-                                                + "master key (default: off)")
+    @Parameter(names = "--sse-kms", description = "Enable KMS encryption (SSE-KMS) for all writes "
+                                                  + "using this particular KMS `key-id`. Leave "
+                                                  + "blank to Use the account's CMK - customer "
+                                                  + "master key (default: off)")
     String sseKms = "";
 
     @Parameter(names = "--acl", description = "The canned ACL to applyto the object. Possible "
@@ -145,7 +140,7 @@ public class App {
         App app = new App();
         new JCommander(app).parse(args);
 
-        args = FlagStorage.massageMountFlags(args);
+        args = FlagStorage.massageMountFlags(app.args.toArray(new String[0]));
 
         // We should get two arguments exactly. Otherwise error out.
         if (args.length != 2) {
@@ -173,15 +168,6 @@ public class App {
         registerSIGINTHandler(fs, flags);
 
         flags.cleanup();
-
-        if (args.length != 1) {
-            System.err.println("usage: b2fs <mountpoint>");
-            System.exit(1);
-        }
-
-        final FileSystem b2 = FileSystems.newFileSystem(
-                URI.create("b2://api.backblazeb2.com/freastro-archive"), Collections.emptyMap());
-        JavaFS.mount(b2, Paths.get(args[0]), true, true, Collections.emptyMap());
         Thread.sleep(Long.MAX_VALUE);
     }
 
