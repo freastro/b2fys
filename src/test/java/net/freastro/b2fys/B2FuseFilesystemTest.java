@@ -37,10 +37,35 @@ public class B2FuseFilesystemTest {
     private static final String MOUNT_POINT = "/mnt";
 
     /**
+     * Test getting attributes.
+     */
+    @Test
+    public void testGetAttr() throws Exception {
+        // Mock B2 client
+        final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
+        Mockito.when(b2.unfinishedLargeFiles(Mockito.anyString()))
+                .thenReturn(() -> Collections.emptyIterator());
+
+        // Mock filesystem
+        final B2FuseFilesystem fs = createFilesystem(b2);
+
+        // Test getattr "/"
+        MockStructStat stat = new MockStructStat("/");
+        int result = fs.getattr(stat.path(), stat);
+        Assert.assertEquals(0, result);
+        Assert.assertEquals(0, stat.uid());
+        Assert.assertEquals(0, stat.gid());
+        Assert.assertEquals(16877, stat.mode());
+        Assert.assertEquals(2, stat.nlink());
+        Assert.assertEquals(4096, stat.size());
+    }
+
+    /**
      * Test reading directory entries.
      */
     @Test
     public void testReadDir() throws Exception {
+        // Create B2 client
         final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
         Mockito.when(b2.fileNames(Mockito.any(B2ListFileNamesRequest.class))).then(answer -> {
             final B2ListFileNamesRequest request = answer.getArgument(0);
@@ -58,12 +83,14 @@ public class B2FuseFilesystemTest {
         Mockito.when(b2.unfinishedLargeFiles(BUCKET))
                 .thenReturn(() -> Collections.<B2FileVersion>emptyList().iterator());
 
+        // Test opendir
         final B2FuseFilesystem fs = createFilesystem(b2);
 
         final StructFuseFileInfo info = createFileInfo("/");
         int result = fs.opendir("/", info);
         Assert.assertEquals(0, result);
 
+        // Test readdir
         final DirectoryFiller directoryFiller = Mockito.mock(DirectoryFiller.class);
         Mockito.when(directoryFiller.add(Mockito.any())).then(answer -> {
             final List<String> list = new ArrayList<>(answer.getArgument(0));
@@ -74,6 +101,7 @@ public class B2FuseFilesystemTest {
         Assert.assertEquals(0, result);
         Mockito.verify(directoryFiller, Mockito.times(1)).add(Mockito.any());
 
+        // Test releasedir
         result = fs.releasedir("/", info);
         Assert.assertEquals(0, result);
     }

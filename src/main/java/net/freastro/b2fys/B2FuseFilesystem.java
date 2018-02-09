@@ -701,7 +701,9 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
         // LookUpInodeOp
         final String opName = path.substring(path.lastIndexOf('/') + 1);
-        final long opParent = lookUpInode(path.substring(0, path.lastIndexOf('/')));
+        final long opParent = (path.lastIndexOf('/') > 0)
+                              ? lookUpInode(path.substring(0, path.lastIndexOf('/')))
+                              : Inode.RootInodeID;
 
         // LookUpInode
         Inode inode;
