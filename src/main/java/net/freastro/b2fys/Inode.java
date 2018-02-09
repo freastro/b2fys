@@ -225,7 +225,8 @@ class Inode {
 
             this.dir.children = Stream.concat(Arrays.stream(this.dir.children), Stream.of(inode))
                     .toArray(Inode[]::new);
-            System.arraycopy(this.dir.children, 0, this.dir.children, i + 1, i);
+            System.arraycopy(this.dir.children, i, this.dir.children, i + 1,
+                             this.dir.children.length - i - 1);
             this.dir.children[i] = inode;
         }
     }
