@@ -203,7 +203,7 @@ class Inode {
             attr.mode = fs.flags.dirMode | TypeMode.S_IFDIR;
         } else {
             attr.nlink = 1;
-            attr.mode = fs.flags.fileMode;
+            attr.mode = fs.flags.fileMode | TypeMode.S_IFREG;
         }
         return attr;
     }
@@ -341,7 +341,7 @@ class Inode {
                     Inode inode = new Inode(this.fs, this, name, fullName);
                     inode.attributes = new InodeAttributes();
                     inode.attributes.size = resp.getContentLength();
-                    inode.attributes.mTime = resp.getUploadTimestamp();
+                    inode.attributes.mTime = resp.getUploadTimestamp() / 1000;
 
                     // don't want to print to the attribute because that
                     // can get updated

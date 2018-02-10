@@ -194,7 +194,7 @@ class DirHandle {
             en.type = DT_File;
             en.attributes = new InodeAttributes();
             en.attributes.size = obj.getContentLength();
-            en.attributes.mTime = obj.getUploadTimestamp();
+            en.attributes.mTime = obj.getUploadTimestamp() / 1000;
             en.eTag = obj.getContentSha1();
             en.storageClass = null;
         }

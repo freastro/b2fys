@@ -43,8 +43,20 @@ public class B2FuseFilesystemTest {
     public void testGetAttr() throws Exception {
         // Mock B2 client
         final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
-        Mockito.when(b2.unfinishedLargeFiles(Mockito.anyString()))
-                .thenReturn(() -> Collections.emptyIterator());
+        Mockito.when(b2.fileNames(Mockito.any(B2ListFileNamesRequest.class))).then(answer -> {
+            final B2ListFileNamesRequest request = answer.getArgument(0);
+            if (request.getPrefix().equals("file")) {
+                return (B2ListFilesIterable) () -> {
+                    final B2FileVersion file = new B2FileVersion(
+                            "100", "file", 42, "text/plain", "",
+                            Collections.emptyMap(), "", 515196900000L);
+                    return Collections.singletonList(file).iterator();
+                };
+            } else {
+                return null;
+            }
+        });
+        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
 
         // Mock filesystem
         final B2FuseFilesystem fs = createFilesystem(b2);
@@ -58,6 +70,19 @@ public class B2FuseFilesystemTest {
         Assert.assertEquals(16877, stat.mode());
         Assert.assertEquals(2, stat.nlink());
         Assert.assertEquals(4096, stat.size());
+
+        // Test getattr "/test"
+        stat = new MockStructStat("/file");
+        result = fs.getattr(stat.path(), stat);
+        Assert.assertEquals(0, result);
+        Assert.assertEquals(0, stat.uid());
+        Assert.assertEquals(0, stat.gid());
+        Assert.assertEquals(515196900, stat.atime());
+        Assert.assertEquals(515196900, stat.mtime());
+        Assert.assertEquals(515196900, stat.ctime());
+        Assert.assertEquals(33188, stat.mode());
+        Assert.assertEquals(1, stat.nlink());
+        Assert.assertEquals(42, stat.size());
     }
 
     /**
@@ -80,8 +105,7 @@ public class B2FuseFilesystemTest {
                 return null;
             }
         });
-        Mockito.when(b2.unfinishedLargeFiles(BUCKET))
-                .thenReturn(() -> Collections.<B2FileVersion>emptyList().iterator());
+        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
 
         // Test opendir
         final B2FuseFilesystem fs = createFilesystem(b2);
