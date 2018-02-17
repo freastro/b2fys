@@ -580,6 +580,18 @@ class Inode {
         knownSize = fs.rootAttrs.size;
     }
 
+    FileHandle openFile() {
+        logFuse("OpenFile");
+
+        mu.lock();
+
+        FileHandle fh = new FileHandle(this);
+        fileHandles += 1;
+
+        mu.unlock();
+        return fh;
+    }
+
     // TODO(ghart)
     private int sortSearch(final int n, @Nonnull final Predicate<Integer> f) {
         for (int i = 0; i < n; ++i) {

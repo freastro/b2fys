@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -438,46 +439,39 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     // FUSE_OPEN (14)
     @Override
     protected int open(String path, StructFuseFileInfo info) {
-        /*
-        fs.mu.Lock()
-        in := fs.getInodeOrDie(op.Inode)
-        fs.mu.Unlock()
+        mu.lock();
+        Inode in = getInodeOrDie(lookUpInode(path));
+        mu.unlock();
 
-        fh, err := in.OpenFile()
-        if err != nil {
-            return
-        }
+        FileHandle fh = in.openFile();
 
-        fs.mu.Lock()
-        defer fs.mu.Unlock()
+        mu.lock();
 
-        handleID := fs.nextHandleID
-        fs.nextHandleID++
+        long handleID = nextHandleID;
+        nextHandleID++;
 
-        fs.fileHandles[handleID] = fh
+        fileHandles.put(handleID, fh);
 
-        op.Handle = handleID
-        op.KeepPageCache = true
+        info.fh(handleID);
+        info.keep_cache(true);
 
-        return
-        */
-        return super.open(path, info);
+        mu.unlock();
+        return 0;
     }
 
     // FUSE_READ (15)
     @Override
     protected int read(String path, ByteBuffer buffer, long size, long offset,
                        StructFuseFileInfo info) {
-        /*
-        fs.mu.Lock()
-        fh := fs.fileHandles[op.Handle]
-        fs.mu.Unlock()
+        AtomicInteger err = new AtomicInteger();
 
-        op.BytesRead, err = fh.ReadFile(op.Offset, op.Dst)
+        mu.lock();
+        FileHandle fh = fileHandles.get(info.fh());
+        mu.unlock();
 
-        return
-        */
-        return super.read(path, buffer, size, offset, info);
+        int bytesRead = fh.readFile(offset, buffer, err);
+
+        return (err.get() == 0) ? bytesRead : err.get();
     }
 
     // FUSE_FSYNC (20)
@@ -501,24 +495,24 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     // FUSE_RELEASE (18)
     @Override
     protected int release(String path, StructFuseFileInfo info) {
-        /*
-        ctx context.Context,
-        op *fuseops.ReleaseFileHandleOp) (err error) {
-        fs.mu.Lock()
-        defer fs.mu.Unlock()
+        mu.lock();
 
-        fh := fs.fileHandles[op.Handle]
-        fh.Release()
+        FileHandle fh = fileHandles.get(info.fh());
+        try {
+            fh.release();
+        } catch (final Exception e) {
+            mu.unlock();
+            return -Errno.EAGAIN.intValue();
+        }
 
-        fuseLog.Debugln("ReleaseFileHandle", *fh.inode.FullName())
+        log.debug("ReleaseFileHandle {}", fh.inode.fullName());
 
-        delete(fs.fileHandles, op.Handle)
+        fileHandles.remove(info.fh());
 
         // try to compact heap
         //fs.bufferPool.MaybeGC()
-        return
-        */
-        return super.release(path, info);
+        mu.unlock();
+        return 0;
     }
 
     // FUSE_CREATE (35)
@@ -628,7 +622,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     }
 
     static boolean expired(@Nonnull final Instant cache, @Nonnull final Duration ttl) {
-        return cache.plus(ttl).isAfter(Instant.now());
+        return cache.getEpochSecond() <= 0 || !cache.plus(ttl).isAfter(Instant.now());
     }
 
     /**

@@ -211,10 +211,7 @@ class DirHandle {
 
         DirHandleEntry en;
         try {
-            en = inode.readDirFromCache(offset);
-            if (en != null) {
-                return en;
-            }
+            return inode.readDirFromCache(offset);
         } catch (IllegalStateException e) {
             // ignored
         }

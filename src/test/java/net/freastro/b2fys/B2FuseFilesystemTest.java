@@ -3,6 +3,9 @@ package net.freastro.b2fys;
 import com.backblaze.b2.client.B2ClientConfig;
 import com.backblaze.b2.client.B2ListFilesIterable;
 import com.backblaze.b2.client.B2StorageClient;
+import com.backblaze.b2.client.contentHandlers.B2ContentSink;
+import com.backblaze.b2.client.contentSources.B2Headers;
+import com.backblaze.b2.client.structures.B2DownloadByNameRequest;
 import com.backblaze.b2.client.structures.B2FileVersion;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
 
@@ -10,6 +13,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -127,6 +132,66 @@ public class B2FuseFilesystemTest {
 
         // Test releasedir
         result = fs.releasedir("/", info);
+        Assert.assertEquals(0, result);
+    }
+
+    /**
+     * Test reading file entries.
+     */
+    @Test
+    public void testReadFile() throws Exception {
+        // Create B2 client
+        final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
+        Mockito.doAnswer(answer -> {
+            final B2DownloadByNameRequest request = answer.getArgument(0);
+            final B2ContentSink sink = answer.getArgument(1);
+            if (request.getFileName().equals("test")) {
+                final InputStream stream = new ByteArrayInputStream("Hello, world!".getBytes());
+                sink.readContent(Mockito.mock(B2Headers.class), stream);
+            }
+            return null;
+        }).when(b2).downloadByName(Mockito.any(B2DownloadByNameRequest.class),
+                                   Mockito.any(B2ContentSink.class));
+        Mockito.when(b2.fileNames(Mockito.any(B2ListFileNamesRequest.class))).then(answer -> {
+            final B2ListFileNamesRequest request = answer.getArgument(0);
+            if (request.getPrefix().equals("") || request.getPrefix().equals("test")) {
+                return (B2ListFilesIterable) () -> {
+                    final B2FileVersion file = new B2FileVersion(
+                            "100", "test", 13, "text/plain", "",
+                            Collections.emptyMap(), "", 0L);
+                    return Collections.singletonList(file).iterator();
+                };
+            } else {
+                return null;
+            }
+        });
+        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
+
+        // Test open
+        final B2FuseFilesystem fs = createFilesystem(b2);
+
+        final StructFuseFileInfo info = createFileInfo("/test");
+        int result = fs.open("/test", info);
+        Assert.assertEquals(0, result);
+
+        // Test read
+        final ByteBuffer buffer = ByteBuffer.allocate(5);
+        result = fs.read("/test", buffer, 5, 0, info);
+        Assert.assertEquals(5, result);
+        Assert.assertEquals("Hello", new String(buffer.array(), 0, 5));
+
+        buffer.position(0);
+        result = fs.read("/test", buffer, 5, 5, info);
+        Assert.assertEquals(5, result);
+        Assert.assertEquals(", wor", new String(buffer.array(), 0, 5));
+
+        buffer.position(0);
+        result = fs.read("/test", buffer, 3, 10, info);
+        Assert.assertEquals(3, result);
+        Assert.assertEquals("ld!", new String(buffer.array(), 0, 3));
+
+        // Test release
+        result = fs.release("/test", info);
         Assert.assertEquals(0, result);
     }
 
