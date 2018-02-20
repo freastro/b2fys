@@ -149,7 +149,7 @@ class FileHandle {
                         err.set(0);
                         return;
                     } else {
-                        err.set(Errno.ENOMEM.intValue());
+                        err.set(-Errno.ENOMEM.intValue());
                     }
                 }
             }
@@ -205,7 +205,7 @@ class FileHandle {
             for (S3ReadBuffer b : buffers) {
                 b.buf.close(new AtomicInteger());
             }
-            buffers = null;
+            buffers.clear();
         }
 
         if (!fs.flags.cheap && seqReadAmount >= READAHEAD_CHUNK && numOOORead < 3) {
@@ -251,7 +251,7 @@ class FileHandle {
         for (S3ReadBuffer b : buffers) {
             b.buf.close(new AtomicInteger());
         }
-        buffers = null;
+        buffers.clear();
 
         if (reader != null) {
             try {
@@ -297,8 +297,9 @@ class FileHandle {
         B2FuseFilesystem fs = inode.fs;
 
         if (reader == null) {
+            String fileName = fs.key(inode.fullName()).replace(" ", "%20");
             B2DownloadByNameRequest.Builder params = B2DownloadByNameRequest
-                    .builder(fs.bucket, fs.key(inode.fullName()));
+                    .builder(fs.bucket.getBucketName(), fileName);
 
             if (offset != 0) {
                 B2ByteRange bytes = B2ByteRange.between(offset, offset + buf.remaining() - 1);
@@ -311,7 +312,7 @@ class FileHandle {
                     this.reader = new ByteArrayInputStream(b);
                 });
             } catch (B2Exception e) {
-                err.set(Errno.EIO.intValue());
+                err.set(-Errno.EIO.intValue());
                 if (inode.fs.flags.debugFuse) {
                     inode.logFuse("< readFromStream", bytesRead);
                 }

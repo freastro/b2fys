@@ -54,8 +54,9 @@ class DirHandle {
         }
 
         Supplier<B2ListFilesIterable> listObjectsFlat = () -> {
-            final B2ListFileNamesRequest params = B2ListFileNamesRequest.builder(fs.bucket)
-                    .setDelimiter("/").setStartFileName(marker).setPrefix(prefix).build();
+            final B2ListFileNamesRequest params = B2ListFileNamesRequest
+                    .builder(fs.bucket.getBucketId()).setDelimiter("/").setStartFileName(marker)
+                    .setPrefix(prefix).build();
             try {
                 return fs.b2.fileNames(params);
             } catch (Exception e) {
@@ -106,8 +107,9 @@ class DirHandle {
             marker = fs.key(this.inode.fullName() + "/");
         }
 
-        final B2ListFileNamesRequest params = B2ListFileNamesRequest.builder(fs.bucket)
-                .setPrefix(reqPrefix).setStartFileName(marker).build();
+        final B2ListFileNamesRequest params = B2ListFileNamesRequest
+                .builder(fs.bucket.getBucketId()).setPrefix(reqPrefix).setStartFileName(marker)
+                .build();
 
         try {
             resp = fs.b2.fileNames(params);

@@ -4,6 +4,7 @@ import com.backblaze.b2.client.B2ClientConfig;
 import com.backblaze.b2.client.B2ListFilesIterable;
 import com.backblaze.b2.client.B2StorageClient;
 import com.backblaze.b2.client.exceptions.B2Exception;
+import com.backblaze.b2.client.structures.B2Bucket;
 import com.backblaze.b2.client.structures.B2FileVersion;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
 import com.backblaze.b2.client.webApiHttpClient.B2StorageHttpClientBuilder;
@@ -46,7 +47,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
     private static final Logger log = LogManager.getLogger(B2FuseFilesystem.class);
 
-    String bucket = "";
+    B2Bucket bucket;
     String prefix = "";
 
     FlagStorage flags;
@@ -105,7 +106,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     B2FuseFilesystem init(String bucket, B2ClientConfig b2Config,
                           FlagStorage flags) {
         B2FuseFilesystem fs = this;
-        fs.bucket = bucket;
+        String bucketName = bucket;
         fs.flags = flags;
         fs.umask = 0122;
 
@@ -120,8 +121,8 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
             }
             fs.prefix += "/";
 
-            fs.bucket = bucket.substring(0, colon);
-            bucket = fs.bucket;
+            bucketName = bucket.substring(0, colon);
+            bucket = bucketName;
         }
 
         if (flags.debugS3) {
@@ -132,6 +133,14 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
         fs.awsConfig = b2Config;
 //        fs.sess = session.New(awsConfig)
         fs.b2 = fs.newS3();
+        try {
+            fs.bucket = fs.b2.getBucketOrNullByName(bucketName);
+        } catch (B2Exception e) {
+            throw new RuntimeException(e);
+        }
+        if (fs.bucket == null) {
+            throw new RuntimeException("Bucket not found: " + bucketName);
+        }
 
         boolean isAws = false;
         int err = 0;
@@ -594,7 +603,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     int cleanUpOldMPU() {
         B2ListFilesIterable mpu;
         try {
-            mpu = b2.unfinishedLargeFiles(bucket);
+            mpu = b2.unfinishedLargeFiles(bucket.getBucketId());
         } catch (B2Exception e) {
             return mapError(e);
         }
@@ -786,8 +795,8 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
         int err = 0;
         try {
-            b2.fileNames(
-                    B2ListFileNamesRequest.builder(bucket).setPrefix(randomObjectName).build());
+            b2.fileNames(B2ListFileNamesRequest.builder(bucket.getBucketId())
+                                 .setPrefix(randomObjectName).build());
         } catch (B2Exception e) {
             err = mapError(e);
             if (err == -Errno.ENOENT.intValue()) {

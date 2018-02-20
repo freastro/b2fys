@@ -42,7 +42,7 @@ class S3ReadBuffer {
 
         b.buf = Buffer.init(mbuf, (error) -> {
             B2DownloadByNameRequest.Builder params = B2DownloadByNameRequest
-                    .builder(fs.bucket, fs.key(fh.inode.fullName()));
+                    .builder(fs.bucket.getBucketName(), fs.key(fh.inode.fullName()));
 
             B2ByteRange bytes = B2ByteRange.between(offset, offset + size - 1);
             params.setRange(bytes);

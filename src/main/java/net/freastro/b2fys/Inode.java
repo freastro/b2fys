@@ -287,7 +287,8 @@ class Inode {
 
     CompletableFuture<B2ListFilesIterable> lookUpInodeDir(@Nonnull final String name) {
         return CompletableFuture.supplyAsync(() -> {
-            B2ListFileNamesRequest params = B2ListFileNamesRequest.builder(this.fs.bucket)
+            B2ListFileNamesRequest params = B2ListFileNamesRequest
+                    .builder(this.fs.bucket.getBucketId())
                     .setDelimiter("/")
                     .setMaxFileCount(1)
                     .setPrefix(this.fs.key(name + "/"))
@@ -424,7 +425,8 @@ class Inode {
 
     CompletableFuture<B2FileVersion> lookUpInodeNotDir(@Nonnull final String name) {
         return CompletableFuture.supplyAsync(() -> {
-            B2ListFileNamesRequest params = B2ListFileNamesRequest.builder(this.fs.bucket)
+            B2ListFileNamesRequest params = B2ListFileNamesRequest
+                    .builder(this.fs.bucket.getBucketId())
                     .setDelimiter("/")
                     .setMaxFileCount(1)
                     .setPrefix(this.fs.key(name))
