@@ -41,8 +41,9 @@ class S3ReadBuffer {
         }
 
         b.buf = Buffer.init(mbuf, (error) -> {
+            String fileName = fs.key(fh.inode.fullName()).replace(" ", "%20");
             B2DownloadByNameRequest.Builder params = B2DownloadByNameRequest
-                    .builder(fs.bucket.getBucketName(), fs.key(fh.inode.fullName()));
+                    .builder(fs.bucket.getBucketName(), fileName);
 
             B2ByteRange bytes = B2ByteRange.between(offset, offset + size - 1);
             params.setRange(bytes);
@@ -54,7 +55,7 @@ class S3ReadBuffer {
                     body.set(new ByteArrayInputStream(buf));
                 });
             } catch (B2Exception e) {
-                error.set(Errno.EIO.intValue());
+                error.set(-Errno.EIO.intValue());
                 return null;
             }
 
@@ -105,7 +106,7 @@ class S3ReadBuffer {
         int n = 0;
 
         if (buf.remaining() < min) {
-            err.set(Errno.EIO.intValue());
+            err.set(-Errno.EIO.intValue());
             return 0;
         }
         while (n < min && err.get() == 0) {

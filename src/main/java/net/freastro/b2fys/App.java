@@ -159,6 +159,10 @@ public class App {
         }
 
         // Mount the file system
+        Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
+            System.err.println("ERROR " + t.getName() + " exited due to: " + e.toString());
+            e.printStackTrace();
+        });
         FuseFilesystem fs = mount(bucketName, flags);
 
         log.info("File system has been successfully mounted.");

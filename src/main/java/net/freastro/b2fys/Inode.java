@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -440,7 +441,12 @@ class Inode {
             }
             LogManager.getLogger("s3").debug(resp);
 
-            return resp.iterator().next();
+            B2FileVersion fh = resp.iterator().next();
+            if (fh.getFileId() != null) {
+                return fh;
+            } else {
+                throw new NoSuchElementException();
+            }
         });
     }
 

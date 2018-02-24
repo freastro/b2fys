@@ -5,16 +5,14 @@ import org.apache.commons.pool2.ObjectPool;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import sun.awt.Mutex;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 class BufferPool {
@@ -23,9 +21,8 @@ class BufferPool {
 
     static final int BUF_SIZE = 5 * 1024 * 1024;
 
-    Mutex mu = new Mutex();
+    ReentrantLock mu = new ReentrantLock();
     Condition cond;
-    Lock lock;
 
     long numBuffers;
     long maxBuffers;
@@ -36,21 +33,24 @@ class BufferPool {
     ObjectPool pool;
 
     BufferPool init() {
-        lock = new ReentrantLock();
-        cond = lock.newCondition();
+        cond = mu.newCondition();
 
         computedMaxBuffers = maxBuffers;
+
+        final GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+        poolConfig.setBlockWhenExhausted(false);
+        poolConfig.setMaxTotal(-1);
         pool = new GenericObjectPool(new BasePooledObjectFactory() {
             @Override
             public Object create() {
-                return ByteBuffer.allocateDirect(BUF_SIZE);
+                return ByteBuffer.allocate(BUF_SIZE);
             }
 
             @Override
             public PooledObject wrap(Object o) {
                 return new DefaultPooledObject<>(o);
             }
-        });
+        }, poolConfig);
 
         return this;
     }
@@ -92,7 +92,6 @@ class BufferPool {
                     }
                 }
                 cond.awaitUninterruptibly();
-                lock.unlock();
             } else {
                 mu.unlock();
                 return buffers;
@@ -125,7 +124,7 @@ class BufferPool {
     void free(ByteBuffer buf) {
         mu.lock();
 
-        buf.reset();
+        buf.clear();
         try {
             pool.returnObject(buf);
         } catch (Exception e) {

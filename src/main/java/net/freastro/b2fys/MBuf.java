@@ -61,8 +61,14 @@ class MBuf {
             System.exit(1);
         }
 
-        p.put(buffers.get(rbuf));
-        rp = p.position();
+        ByteBuffer r = buffers.get(rbuf);
+        int oldLimit = r.limit();
+        int oldPosition = r.position();
+        r.limit(Math.min(r.position() + p.remaining(), oldLimit));
+        p.put(r);
+        r.limit(oldLimit);
+        n = r.position() - oldPosition;
+        rp += n;
 
         return n;
     }

@@ -478,7 +478,13 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
         FileHandle fh = fileHandles.get(info.fh());
         mu.unlock();
 
-        int bytesRead = fh.readFile(offset, buffer, err);
+        int bytesRead = 0;
+        try {
+            bytesRead = fh.readFile(offset, buffer, err);
+        } catch (Exception e) {
+            System.err.println("ERROR "+Thread.currentThread().getName()+" "+e.toString());
+            e.printStackTrace();
+        }
 
         return (err.get() == 0) ? bytesRead : err.get();
     }
