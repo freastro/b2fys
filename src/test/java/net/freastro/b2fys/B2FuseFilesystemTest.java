@@ -5,6 +5,8 @@ import com.backblaze.b2.client.B2ListFilesIterable;
 import com.backblaze.b2.client.B2StorageClient;
 import com.backblaze.b2.client.contentHandlers.B2ContentSink;
 import com.backblaze.b2.client.contentSources.B2Headers;
+import com.backblaze.b2.client.exceptions.B2Exception;
+import com.backblaze.b2.client.structures.B2Bucket;
 import com.backblaze.b2.client.structures.B2DownloadByNameRequest;
 import com.backblaze.b2.client.structures.B2FileVersion;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
@@ -47,7 +49,7 @@ public class B2FuseFilesystemTest {
     @Test
     public void testGetAttr() throws Exception {
         // Mock B2 client
-        final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
+        final B2StorageClient b2 = createB2StorageClient();
         Mockito.when(b2.fileNames(Mockito.any(B2ListFileNamesRequest.class))).then(answer -> {
             final B2ListFileNamesRequest request = answer.getArgument(0);
             if (request.getPrefix().equals("file")) {
@@ -61,7 +63,6 @@ public class B2FuseFilesystemTest {
                 return null;
             }
         });
-        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
 
         // Mock filesystem
         final B2FuseFilesystem fs = createFilesystem(b2);
@@ -96,7 +97,7 @@ public class B2FuseFilesystemTest {
     @Test
     public void testReadDir() throws Exception {
         // Create B2 client
-        final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
+        final B2StorageClient b2 = createB2StorageClient();
         Mockito.when(b2.fileNames(Mockito.any(B2ListFileNamesRequest.class))).then(answer -> {
             final B2ListFileNamesRequest request = answer.getArgument(0);
             if (request.getPrefix().equals("")) {
@@ -110,7 +111,6 @@ public class B2FuseFilesystemTest {
                 return null;
             }
         });
-        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
 
         // Test opendir
         final B2FuseFilesystem fs = createFilesystem(b2);
@@ -141,7 +141,7 @@ public class B2FuseFilesystemTest {
     @Test
     public void testReadFile() throws Exception {
         // Create B2 client
-        final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
+        final B2StorageClient b2 = createB2StorageClient();
         Mockito.doAnswer(answer -> {
             final B2DownloadByNameRequest request = answer.getArgument(0);
             final B2ContentSink sink = answer.getArgument(1);
@@ -165,7 +165,6 @@ public class B2FuseFilesystemTest {
                 return null;
             }
         });
-        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
 
         // Test open
         final B2FuseFilesystem fs = createFilesystem(b2);
@@ -193,6 +192,18 @@ public class B2FuseFilesystemTest {
         // Test release
         result = fs.release("/test", info);
         Assert.assertEquals(0, result);
+    }
+
+    /**
+     * Creates a new B2 Storage Client.
+     */
+    private B2StorageClient createB2StorageClient() throws B2Exception {
+        final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
+        Mockito.when(b2.getBucketOrNullByName(BUCKET)).thenReturn(
+                new B2Bucket("TEST", BUCKET, BUCKET, "", Collections.emptyMap(),
+                             Collections.emptyList(), 0));
+        Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
+        return b2;
     }
 
     /**
