@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -354,8 +355,11 @@ class Inode {
                     return inode;
                 } catch (Exception err) {
                     checking--;
-                    checkErr[0] = err;
-                    LogManager.getLogger("s3").debug("HEAD %s = %s", fullName, err);
+                    if (!(err instanceof ExecutionException
+                          && err.getCause() instanceof NoSuchElementException)) {
+                        checkErr[0] = err;
+                        LogManager.getLogger("s3").debug("HEAD %s = %s", fullName, err);
+                    }
                 }
                 objectChan = null;
             }
@@ -399,8 +403,11 @@ class Inode {
                     return inode;
                 } catch (Exception err) {
                     checking--;
-                    checkErr[1] = err;
-                    LogManager.getLogger("s3").debug("HEAD %s/ = %s", fullName, err);
+                    if (!(err instanceof ExecutionException
+                          && err.getCause() instanceof NoSuchElementException)) {
+                        checkErr[1] = err;
+                        LogManager.getLogger("s3").debug("HEAD %s/ = %s", fullName, err);
+                    }
                 }
                 dirBlobChan = null;
             }
@@ -441,8 +448,9 @@ class Inode {
             }
             LogManager.getLogger("s3").debug(resp);
 
-            B2FileVersion fh = resp.iterator().next();
-            if (fh.getFileId() != null) {
+            Iterator<B2FileVersion> iter = resp.iterator();
+            B2FileVersion fh = iter.hasNext() ? iter.next() : null;
+            if (fh != null && fh.getFileId() != null) {
                 return fh;
             } else {
                 throw new NoSuchElementException();
