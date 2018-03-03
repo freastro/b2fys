@@ -32,7 +32,7 @@ class MBuf {
 
         if (size != 0) {
             mb.buffers = h.requestMultiple(size, block);
-            if (mb.buffers == null) {
+            if (mb.buffers == null || mb.buffers.isEmpty()) {
                 return null;
             }
         }
