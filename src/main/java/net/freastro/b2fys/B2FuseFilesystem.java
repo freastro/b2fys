@@ -301,7 +301,12 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     // FUSE_GETATTR (3)
     @Override
     protected int getattr(@Nonnull final String path, @Nonnull final StructStat stat) {
-        Inode inode = getInodeOrDie(lookUpInode(path));
+        Inode inode;
+        try {
+            inode = getInodeOrDie(lookUpInode(path));
+        } catch (NoSuchElementException e) {
+            return -Errno.ENOENT.intValue();
+        }
 
         final FuseInodeAttributes attr = inode.getAttributes();
         if (attr != null) {
@@ -721,7 +726,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
         // LookUpInode
         Inode inode;
         boolean ok;
-        log.debug("<-- LookUpInode %s %s %s", opParent, opName, "");
+        log.debug("<-- LookUpInode {} {} {}", opParent, opName, "");
 
         Inode parent = getInodeOrDie(opParent);
 
@@ -754,6 +759,8 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
             try {
                 newInode = parent.lookUp(opName);
+            } catch (NoSuchElementException e) {
+                throw e;
             } catch (Exception e) {
                 if (inode != null) {
                     // just kidding! pretend we didn't up the ref

@@ -358,7 +358,7 @@ class Inode {
                     if (!(err instanceof ExecutionException
                           && err.getCause() instanceof NoSuchElementException)) {
                         checkErr[0] = err;
-                        LogManager.getLogger("s3").debug("HEAD %s = %s", fullName, err);
+                        LogManager.getLogger("s3").debug("HEAD {} = {}", fullName, err);
                     }
                 }
                 objectChan = null;
@@ -385,11 +385,14 @@ class Inode {
                             implicitDir = true;
                         }
                         return inode;
+                    } else {
+                        checkErr[2] = new NoSuchElementException();
+                        checking--;
                     }
                 } catch (Exception err) {
                     checking--;
                     checkErr[2] = err;
-                    LogManager.getLogger("s3").debug("LIST %s/ = %s", fullName, err);
+                    LogManager.getLogger("s3").debug("LIST {}/ = {}", fullName, err);
                 }
                 dirChan = null;
             }
@@ -406,7 +409,7 @@ class Inode {
                     if (!(err instanceof ExecutionException
                           && err.getCause() instanceof NoSuchElementException)) {
                         checkErr[1] = err;
-                        LogManager.getLogger("s3").debug("HEAD %s/ = %s", fullName, err);
+                        LogManager.getLogger("s3").debug("HEAD {}/ = {}", fullName, err);
                     }
                 }
                 dirBlobChan = null;
@@ -426,7 +429,12 @@ class Inode {
                 }
             }
             if (checking == 0) {
-                throw new RuntimeException();
+                for (Exception e : checkErr) {
+                    if (e != null && !(e instanceof NoSuchElementException)) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                throw new NoSuchElementException();
             }
         }
     }
