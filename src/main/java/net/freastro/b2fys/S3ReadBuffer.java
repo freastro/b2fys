@@ -5,13 +5,9 @@ import com.backblaze.b2.client.exceptions.B2Exception;
 import com.backblaze.b2.client.structures.B2DownloadByNameRequest;
 import com.backblaze.b2.util.B2ByteRange;
 
-import sun.misc.IOUtils;
-
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import jnr.constants.platform.Errno;
 
@@ -41,26 +37,23 @@ class S3ReadBuffer {
         }
 
         b.buf = Buffer.init(mbuf, (error) -> {
-            String fileName = fs.key(fh.inode.fullName()).replace(" ", "%20");
+            String fileName = fs.key(fh.inode.fullName());
             B2DownloadByNameRequest.Builder params = B2DownloadByNameRequest
                     .builder(fs.bucket.getBucketName(), fileName);
 
             B2ByteRange bytes = B2ByteRange.between(offset, offset + size - 1);
             params.setRange(bytes);
 
-            AtomicReference<InputStream> body = new AtomicReference<>();
+            InputStream body;
             try {
-                fs.b2.downloadByName(params.build(), (response, in) -> {
-                    byte[] buf = IOUtils.readFully(in, size, false);
-                    body.set(new ByteArrayInputStream(buf));
-                });
+                body = fs.b2sc.streamByName(params.build());
             } catch (B2Exception e) {
                 error.set(-Errno.EIO.intValue());
                 return null;
             }
 
             error.set(0);
-            return body.get();
+            return body;
         });
 
         return b;

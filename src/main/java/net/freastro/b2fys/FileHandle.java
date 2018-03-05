@@ -8,9 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import sun.awt.Mutex;
-import sun.misc.IOUtils;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
@@ -297,7 +295,7 @@ class FileHandle {
         B2FuseFilesystem fs = inode.fs;
 
         if (reader == null) {
-            String fileName = fs.key(inode.fullName()).replace(" ", "%20");
+            String fileName = fs.key(inode.fullName());
             B2DownloadByNameRequest.Builder params = B2DownloadByNameRequest
                     .builder(fs.bucket.getBucketName(), fileName);
 
@@ -307,10 +305,7 @@ class FileHandle {
             }
 
             try {
-                fs.b2.downloadByName(params.build(), (response, in) -> {
-                    byte[] b = IOUtils.readFully(in, READAHEAD_CHUNK, false);
-                    this.reader = new ByteArrayInputStream(b);
-                });
+                reader = fs.b2sc.streamByName(params.build());
             } catch (B2Exception e) {
                 err.set(-Errno.EIO.intValue());
                 if (inode.fs.flags.debugFuse) {

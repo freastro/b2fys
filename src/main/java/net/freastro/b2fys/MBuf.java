@@ -109,9 +109,9 @@ class MBuf {
     static int read(ByteBuffer dst, InputStream src, AtomicInteger err) {
         byte[] buf = new byte[4096];
         int n = 0;
-        int size = buf.length;
+        int size;
 
-        while (dst.remaining() > 0 && size == buf.length) {
+        while (dst.remaining() > 0) {
             try {
                 size = src.read(buf, 0, Math.min(dst.remaining(), buf.length));
             } catch (IOException e) {

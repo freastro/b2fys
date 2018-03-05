@@ -7,7 +7,9 @@ import com.backblaze.b2.client.exceptions.B2Exception;
 import com.backblaze.b2.client.structures.B2Bucket;
 import com.backblaze.b2.client.structures.B2FileVersion;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
-import com.backblaze.b2.client.webApiHttpClient.B2StorageHttpClientBuilder;
+
+import net.freastro.b2fys.client.B2StreamClient;
+import net.freastro.b2fys.client.B2StreamClientBuilder;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,6 +59,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
     B2ClientConfig awsConfig;
     Object sess;
     B2StorageClient b2;
+    B2StreamClient b2sc;
     boolean v2Signer;
     String seeType = "";
     InodeAttributes rootAttrs = new InodeAttributes();
@@ -132,7 +135,8 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
 
         fs.awsConfig = b2Config;
 //        fs.sess = session.New(awsConfig)
-        fs.b2 = fs.newS3();
+        b2sc = fs.newS3();
+        b2 = b2sc.getStorageClient();
         try {
             fs.bucket = fs.b2.getBucketOrNullByName(bucketName);
         } catch (B2Exception e) {
@@ -482,7 +486,7 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
         try {
             bytesRead = fh.readFile(offset, buffer, err);
         } catch (Exception e) {
-            System.err.println("ERROR "+Thread.currentThread().getName()+" "+e.toString());
+            System.err.println("ERROR " + Thread.currentThread().getName() + " " + e.toString());
             e.printStackTrace();
         }
 
@@ -791,9 +795,8 @@ public class B2FuseFilesystem extends AbstractFuseFilesystem {
         return d;
     }
 
-    B2StorageClient newS3() {
-        B2StorageClient svc = B2StorageHttpClientBuilder.builder(awsConfig).build();
-        return svc;
+    B2StreamClient newS3() {
+        return B2StreamClientBuilder.builder(awsConfig).build();
     }
 
     int testBucket() {

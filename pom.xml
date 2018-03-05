@@ -11,7 +11,7 @@
   <url>http://maven.apache.org</url>
 
   <properties>
-    <b2.sdk.version>1.0.0</b2.sdk.version>
+    <b2.sdk.version>1.2.0</b2.sdk.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
   </properties>
 

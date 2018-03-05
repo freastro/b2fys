@@ -3,20 +3,22 @@ package net.freastro.b2fys;
 import com.backblaze.b2.client.B2ClientConfig;
 import com.backblaze.b2.client.B2ListFilesIterable;
 import com.backblaze.b2.client.B2StorageClient;
-import com.backblaze.b2.client.contentHandlers.B2ContentSink;
-import com.backblaze.b2.client.contentSources.B2Headers;
 import com.backblaze.b2.client.exceptions.B2Exception;
 import com.backblaze.b2.client.structures.B2Bucket;
 import com.backblaze.b2.client.structures.B2DownloadByNameRequest;
 import com.backblaze.b2.client.structures.B2FileVersion;
 import com.backblaze.b2.client.structures.B2ListFileNamesRequest;
 
+import net.freastro.b2fys.client.B2Stream;
+import net.freastro.b2fys.client.B2StreamClient;
+
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.CloseableHttpResponse;
 import org.junit.Assert;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
-import java.io.InputStream;
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.time.Duration;
@@ -25,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+
+import javax.annotation.Nonnull;
 
 import co.paralleluniverse.fuse.DirectoryFiller;
 import co.paralleluniverse.fuse.StructFuseFileInfo;
@@ -140,18 +144,8 @@ public class B2FuseFilesystemTest {
      */
     @Test
     public void testReadFile() throws Exception {
-        // Create B2 client
+        // Create B2 storage client
         final B2StorageClient b2 = createB2StorageClient();
-        Mockito.doAnswer(answer -> {
-            final B2DownloadByNameRequest request = answer.getArgument(0);
-            final B2ContentSink sink = answer.getArgument(1);
-            if (request.getFileName().equals("test")) {
-                final InputStream stream = new ByteArrayInputStream("Hello, world!".getBytes());
-                sink.readContent(Mockito.mock(B2Headers.class), stream);
-            }
-            return null;
-        }).when(b2).downloadByName(Mockito.any(B2DownloadByNameRequest.class),
-                                   Mockito.any(B2ContentSink.class));
         Mockito.when(b2.fileNames(Mockito.any(B2ListFileNamesRequest.class))).then(answer -> {
             final B2ListFileNamesRequest request = answer.getArgument(0);
             if (request.getPrefix().equals("") || request.getPrefix().equals("test")) {
@@ -166,8 +160,23 @@ public class B2FuseFilesystemTest {
             }
         });
 
+        // Create B2 stream client
+        final B2StreamClient stream = createB2StreamClient(b2);
+        Mockito.doAnswer(answer -> {
+            final B2DownloadByNameRequest request = answer.getArgument(0);
+            if (request.getFileName().equals("test")) {
+                final HttpEntity entity = Mockito.mock(HttpEntity.class);
+                Mockito.when(entity.getContent())
+                        .thenReturn(new ByteArrayInputStream("Hello, world!".getBytes()));
+                final CloseableHttpResponse response = Mockito.mock(CloseableHttpResponse.class);
+                Mockito.when(response.getEntity()).thenReturn(entity);
+                return new B2Stream(response);
+            }
+            return null;
+        }).when(stream).streamByName(Mockito.any(B2DownloadByNameRequest.class));
+
         // Test open
-        final B2FuseFilesystem fs = createFilesystem(b2);
+        final B2FuseFilesystem fs = createFilesystem(stream);
 
         final StructFuseFileInfo info = createFileInfo("/test");
         int result = fs.open("/test", info);
@@ -201,8 +210,17 @@ public class B2FuseFilesystemTest {
         final B2StorageClient b2 = Mockito.mock(B2StorageClient.class);
         Mockito.when(b2.getBucketOrNullByName(BUCKET)).thenReturn(
                 new B2Bucket("TEST", BUCKET, BUCKET, "", Collections.emptyMap(),
-                             Collections.emptyList(), 0));
+                             Collections.emptyList(), Collections.emptyList(), 0));
         Mockito.when(b2.unfinishedLargeFiles(BUCKET)).thenReturn(Collections::emptyIterator);
+        return b2;
+    }
+
+    /**
+     * Creates a new B2 Stream Client.
+     */
+    private B2StreamClient createB2StreamClient(@Nonnull final B2StorageClient storageClient) {
+        final B2StreamClient b2 = Mockito.mock(B2StreamClient.class);
+        Mockito.when(b2.getStorageClient()).thenReturn(storageClient);
         return b2;
     }
 
@@ -225,9 +243,16 @@ public class B2FuseFilesystemTest {
      * Creates a new B2 Filey System.
      */
     private B2FuseFilesystem createFilesystem(final B2StorageClient b2Client) {
+        return createFilesystem(createB2StreamClient(b2Client));
+    }
+
+    /**
+     * Creates a new B2 Filey System.
+     */
+    private B2FuseFilesystem createFilesystem(final B2StreamClient b2Client) {
         final B2FuseFilesystem fs = new B2FuseFilesystem() {
             @Override
-            B2StorageClient newS3() {
+            B2StreamClient newS3() {
                 return b2Client;
             }
         };
